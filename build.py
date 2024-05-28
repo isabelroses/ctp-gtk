@@ -37,12 +37,7 @@ class Suffix:
     false_value: str = ""
 
 
-IS_DARK = Suffix(true_value="-Dark", test=lambda ctx: ctx.flavor.dark)
-IS_LIGHT = Suffix(true_value="-Light", test=lambda ctx: not ctx.flavor.dark)
 IS_WINDOW_NORMAL = Suffix(true_value="-Normal", test=lambda ctx: ctx.tweaks.has('normal'))
-DARK_LIGHT = Suffix(
-    true_value="-Dark", false_value="-Light", test=lambda ctx: ctx.flavor.dark
-)
 
 @dataclass
 class BuildContext:
@@ -55,10 +50,7 @@ class BuildContext:
     tweaks: Tweaks
 
     def output_dir(self) -> str:
-        suffix = "light"
-        if self.flavor.dark:
-            suffix = "dark"
-        return f"{self.build_root}/{self.build_id()}-{suffix}"
+        return f"{self.build_root}/{self.build_id()}"
 
     def build_id(self) -> str:
         return f"{self.theme_name}-{self.flavor.identifier}-{self.accent.identifier}-{self.size}+{self.tweaks.id() or 'default'}"
@@ -87,7 +79,7 @@ def build(ctx: BuildContext):
         file.write("[X-GNOME-Metatheme]\n")
         file.write(f"GtkTheme={ctx.build_id()}\n")
         file.write(f"MetacityTheme={ctx.build_id()}\n")
-        file.write(f"IconTheme=Tela-circle{ctx.apply_suffix(IS_DARK)}\n")
+        file.write(f"IconTheme=Tela-circle\n")
         file.write(f"CursorTheme={ctx.flavor.name}-cursors\n")
         file.write("ButtonLayout=close,minimize,maximize:menu\n")
 
@@ -100,7 +92,7 @@ def build(ctx: BuildContext):
         [
             "sassc",
             *SASSC_OPT,
-            f"{SRC_DIR}/main/gnome-shell/gnome-shell{ctx.apply_suffix(DARK_LIGHT)}.scss",
+            f"{SRC_DIR}/main/gnome-shell/gnome-shell.scss",
             f"{output_dir}/gnome-shell/gnome-shell.css",
         ]
     )
@@ -110,7 +102,7 @@ def build(ctx: BuildContext):
         [
             "sassc",
             *SASSC_OPT,
-            f"{SRC_DIR}/main/gtk-3.0/gtk{ctx.apply_suffix(DARK_LIGHT)}.scss",
+            f"{SRC_DIR}/main/gtk-3.0/gtk.scss",
             f"{output_dir}/gtk-3.0/gtk.css",
         ]
     )
@@ -129,7 +121,7 @@ def build(ctx: BuildContext):
         [
             "sassc",
             *SASSC_OPT,
-            f"{SRC_DIR}/main/gtk-4.0/gtk{ctx.apply_suffix(DARK_LIGHT)}.scss",
+            f"{SRC_DIR}/main/gtk-4.0/gtk.scss",
             f"{output_dir}/gtk-4.0/gtk.css",
         ]
     )
@@ -148,7 +140,7 @@ def build(ctx: BuildContext):
         [
             "sassc",
             *SASSC_OPT,
-            f"{SRC_DIR}/main/cinnamon/cinnamon{ctx.apply_suffix(DARK_LIGHT)}.scss",
+            f"{SRC_DIR}/main/cinnamon/cinnamon.scss",
             f"{output_dir}/cinnamon/cinnamon.css",
         ]
     )
@@ -158,33 +150,36 @@ def build(ctx: BuildContext):
         f"{SRC_DIR}/main/metacity-1/metacity-theme-3{ctx.apply_suffix(IS_WINDOW_NORMAL)}.xml",
         f"{output_dir}/metacity-1/metacity-theme-3.xml",
     )
-    # FIXME: Symlinks aren't working as intended
-    # FIXME: Do we need them?
-    # os.symlink(
-    #     f"{output_dir}/metacity-1/metacity-theme-3.xml",
-    #     f"{output_dir}/metacity-1/metacity-theme-2.xml",
-    # )
-    # os.symlink(
-    #     f"{output_dir}/metacity-1/metacity-theme-3.xml",
-    #     f"{output_dir}/metacity-1/metacity-theme-1.xml",
-    # )
 
     os.makedirs(f"{output_dir}/xfwm4", exist_ok=True)
-    shutil.copyfile(
-        f"{SRC_DIR}/main/xfwm4/themerc{ctx.apply_suffix(IS_LIGHT)}",
-        f"{output_dir}/xfwm4/themerc",
-    )
+    if ctx.flavor.dark:
+        shutil.copyfile(
+                f"{SRC_DIR}/main/xfwm4/themerc",
+                f"{output_dir}/xfwm4/themerc",
+                )
+    else:
+        shutil.copyfile(
+                f"{SRC_DIR}/main/xfwm4/themerc-Light",
+                f"{output_dir}/xfwm4/themerc",
+                )
 
     os.makedirs(f"{output_dir}-hdpi/xfwm4", exist_ok=True)
-    shutil.copyfile(
-        f"{SRC_DIR}/main/xfwm4/themerc{ctx.apply_suffix(IS_LIGHT)}",
-        f"{output_dir}-hdpi/xfwm4/themerc",
-    )
+    if ctx.flavor.dark:
+        shutil.copyfile(
+                f"{SRC_DIR}/main/xfwm4/themerc",
+                f"{output_dir}-hdpi/xfwm4/themerc",
+                )
+    else:
+        shutil.copyfile(
+                f"{SRC_DIR}/main/xfwm4/themerc-Light",
+                f"{output_dir}-hdpi/xfwm4/themerc",
+                )
+
     subst_text(f"{output_dir}-hdpi/xfwm4/themerc", "button_offset=6", "button_offset=9")
 
     os.makedirs(f"{output_dir}-xhdpi/xfwm4", exist_ok=True)
     shutil.copyfile(
-        f"{SRC_DIR}/main/xfwm4/themerc{ctx.apply_suffix(IS_LIGHT)}",
+        f"{SRC_DIR}/main/xfwm4/themerc",
         f"{output_dir}-xhdpi/xfwm4/themerc",
     )
     subst_text(
@@ -272,7 +267,7 @@ def make_assets(ctx: BuildContext):
     for file in glob.glob(f"{SRC_DIR}/assets/cinnamon/theme/*.svg"):
         shutil.copy(file, f"{output_dir}/cinnamon/assets")
     shutil.copy(
-        f"{SRC_DIR}/assets/cinnamon/thumbnail{ctx.apply_suffix(DARK_LIGHT)}.svg",
+        f"{SRC_DIR}/assets/cinnamon/thumbnail.svg",
         f"{output_dir}/cinnamon/thumbnail.png",
     )
 
@@ -291,11 +286,11 @@ def make_assets(ctx: BuildContext):
         dirs_exist_ok=True,
     )
     shutil.copyfile(
-        f"{SRC_DIR}/assets/gtk/thumbnail{ctx.apply_suffix(IS_DARK)}.svg",
+        f"{SRC_DIR}/assets/gtk/thumbnail.svg",
         f"{output_dir}/gtk-3.0/thumbnail.png",
     )
     shutil.copyfile(
-        f"{SRC_DIR}/assets/gtk/thumbnail{ctx.apply_suffix(IS_DARK)}.svg",
+        f"{SRC_DIR}/assets/gtk/thumbnail.svg",
         f"{output_dir}/gtk-4.0/thumbnail.png",
     )
 
@@ -351,23 +346,23 @@ def make_assets(ctx: BuildContext):
     for file in glob.glob(f"{SRC_DIR}/assets/cinnamon/common-assets/*.svg"):
         shutil.copy(file, f"{output_dir}/cinnamon/assets")
 
-    for file in glob.glob(f"{SRC_DIR}/assets/cinnamon/assets{ctx.apply_suffix(IS_DARK)}/*.svg"):
+    for file in glob.glob(f"{SRC_DIR}/assets/cinnamon/assets/*.svg"):
         shutil.copy(file, f"{output_dir}/cinnamon/assets")
 
     for file in glob.glob(f"{SRC_DIR}/assets/gnome-shell/common-assets/*.svg"):
         shutil.copy(file, f"{output_dir}/gnome-shell/assets")
 
-    for file in glob.glob(f"{SRC_DIR}/assets/gnome-shell/assets{ctx.apply_suffix(IS_DARK)}/*.svg"):
+    for file in glob.glob(f"{SRC_DIR}/assets/gnome-shell/assets/*.svg"):
         shutil.copy(file, f"{output_dir}/gnome-shell/assets")
 
     for file in glob.glob(f"{SRC_DIR}/assets/gtk/symbolics/*.svg"):
         shutil.copy(file, f"{output_dir}/gtk-3.0/assets")
         shutil.copy(file, f"{output_dir}/gtk-4.0/assets")
 
-    for file in glob.glob(f"{SRC_DIR}/assets/metacity-1/assets{ctx.apply_suffix(IS_WINDOW_NORMAL)}/*.svg"):
+    for file in glob.glob(f"{SRC_DIR}/assets/metacity-1/assets/*.svg"):
         shutil.copy(file, f"{output_dir}/metacity-1/assets")
     shutil.copy(
-        f"{SRC_DIR}/assets/metacity-1/thumbnail{ctx.apply_suffix(IS_DARK)}.png",
+        f"{SRC_DIR}/assets/metacity-1/thumbnail.png",
         f"{output_dir}/metacity-1/thumbnail.png",
     )
 
